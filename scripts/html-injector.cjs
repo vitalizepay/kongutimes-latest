@@ -163,8 +163,12 @@ function updateHomepage(allArticles, date) {
   </article>`);
     if (cards.length >= 6) break;
   }
+  if (cards.length === 0) {
+    console.log('  ⚠️  No news cards generated — allArticles may be empty');
+  }
   r = replaceBlock(html,'<!--NEWSGRID-START-->','<!--NEWSGRID-END-->',cards.join('\n'));
   if (r) html = r;
+  else console.log('  ⚠️  NEWSGRID markers not found in index.html');
 
   // Update header date
   html = html.replace(/VOICE OF THE KONGU REGION[^<"']*/g, `VOICE OF THE KONGU REGION · ${dEN}`);

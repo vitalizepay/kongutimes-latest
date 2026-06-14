@@ -3,6 +3,3 @@ Allow: /
 Disallow: /thankyou.html
 
 Sitemap: https://thekongutimes.com/sitemap.xml
-
-User-agent: AdsBot-Google
-Allow: /

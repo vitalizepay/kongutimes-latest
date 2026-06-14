@@ -27,6 +27,44 @@ function isJunk(title, category) {
   return JUNK_PATTERNS.some(p => p.test(title));
 }
 
+
+// Validate article quality — detect garbled/corrupted AI output
+function isQualityOK(article) {
+  const bodyTA = article.body_ta || '';
+  const bodyEN = article.body_en || '';
+
+  // 1. Minimum length check
+  if (bodyTA.length < 300 || bodyEN.length < 300) return { ok: false, reason: 'too short' };
+
+  // 2. Tamil body should be mostly Tamil unicode characters
+  // Tamil unicode range: U+0B80–U+0BFF
+  const tamilChars = (bodyTA.match(/[\u0B80-\u0BFF]/g) || []).length;
+  const totalChars = bodyTA.replace(/\s/g, '').length;
+  const tamilRatio = totalChars > 0 ? tamilChars / totalChars : 0;
+  if (tamilRatio < 0.6) return { ok: false, reason: `low Tamil ratio: ${(tamilRatio*100).toFixed(0)}%` };
+
+  // 3. Detect excessive uppercase English words mixed into Tamil (garbled output signature)
+  const upperWordsInTamil = (bodyTA.match(/\b[A-Z]{2,}\b/g) || []).length;
+  if (upperWordsInTamil > 5) return { ok: false, reason: `${upperWordsInTamil} uppercase English words in Tamil body` };
+
+  // 4. Detect repeated broken Tamil combining-mark patterns (e.g. "ப்ப்ப்" sequences)
+  const brokenPattern = /[\u0BCD]{2,}|[\u0B95-\u0BB9][\u0BCD][\u0B95-\u0BB9][\u0BCD]\s*[\u0B95-\u0BB9][\u0BCD]/g;
+  const brokenMatches = (bodyTA.match(brokenPattern) || []).length;
+  if (brokenMatches > 8) return { ok: false, reason: `${brokenMatches} broken Tamil sequences detected` };
+
+  // 5. English body should be mostly ASCII letters
+  const asciiLetters = (bodyEN.match(/[a-zA-Z]/g) || []).length;
+  const enTotalChars = bodyEN.replace(/\s/g, '').length;
+  const asciiRatio = enTotalChars > 0 ? asciiLetters / enTotalChars : 0;
+  if (asciiRatio < 0.7) return { ok: false, reason: `low ASCII ratio in English: ${(asciiRatio*100).toFixed(0)}%` };
+
+  // 6. Headlines must exist and be reasonable length
+  if (!article.headline_ta || article.headline_ta.length < 10) return { ok: false, reason: 'invalid Tamil headline' };
+  if (!article.headline_en || article.headline_en.length < 10) return { ok: false, reason: 'invalid English headline' };
+
+  return { ok: true };
+}
+
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function collectArticles(district) {
@@ -91,6 +129,16 @@ async function rewriteArticles(items, district) {
       if (!article.headline_ta || !article.body_ta || !article.body_en) throw new Error('Incomplete');
       if (article.body_ta.length < 400) throw new Error(`Tamil too short: ${article.body_ta.length} chars`);
       if (article.body_en.length < 400) throw new Error(`English too short: ${article.body_en.length} chars`);
+
+      const quality = isQualityOK(article);
+      if (!quality.ok) {
+        console.log(`  ⚠️  Quality check failed (${quality.reason}), retrying once...`);
+        // Retry once with same source
+        const retryArticle = await rewriteArticle(item.sourceText, district.name, district.tamil, cat);
+        const retryQuality = isQualityOK(retryArticle);
+        if (!retryQuality.ok) throw new Error(`Quality failed twice: ${retryQuality.reason}`);
+        Object.assign(article, retryArticle);
+      }
 
       article.image = item.image || null;
       done.push(article);
