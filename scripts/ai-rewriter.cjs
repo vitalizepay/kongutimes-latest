@@ -1,7 +1,7 @@
 'use strict';
 const https = require('https');
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const OPENROUTER_API_KEY = (process.env.OPENROUTER_API_KEY || '').trim();
 const MODEL = 'anthropic/claude-3.5-haiku';
 
 function callOpenRouter(messages, maxTokens = 4000) {
