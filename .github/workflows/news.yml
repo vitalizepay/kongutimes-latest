@@ -1,11 +1,9 @@
-name: Daily Auto News Update
+name: Auto News Update (3-hourly)
 
 on:
   schedule:
-    # Runs at 00:30 UTC = 06:00 IST every day
-    - cron: '30 0 * * *'
-    # Also runs at 12:30 UTC = 18:00 IST for evening update
-    - cron: '30 12 * * *'
+    # Runs every 3 hours
+    - cron: '0 */3 * * *'
 
   # Allow manual trigger from GitHub Actions tab
   workflow_dispatch:

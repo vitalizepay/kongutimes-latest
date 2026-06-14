@@ -6,6 +6,7 @@ const { fetchFeed, fetchArticleText, deduplicate, filterByDistrict, filterRecent
 const { rewriteArticle } = require('./ai-rewriter.cjs');
 const { injectIntoRegionPage, updateHomepage } = require('./html-injector.cjs');
 const { generateSitemap, generateRobots } = require('./sitemap-gen.cjs');
+const { loadSeen, saveSeen, filterUnseen, markSeen, loadLastArticles, saveLastArticles } = require('./seen-urls.cjs');
 
 const ARTICLES_PER_DISTRICT = 5;   // 5 full articles per district
 const MIN_TEXT_LENGTH = 80;
@@ -87,6 +88,11 @@ async function collectArticles(district) {
   items = items.filter(item => !isJunk(item.title, detectCategory(item.title)));
   console.log(`  After junk filter: ${items.length}`);
 
+  // Remove already-published articles (persisted across runs)
+  const beforeSeen = items.length;
+  items = filterUnseen(items, global.__seenUrls);
+  console.log(`  New (not yet published): ${items.length} (${beforeSeen - items.length} already published)`);
+
   // Fetch full text for each
   const withText = [];
   for (const item of items) {
@@ -142,6 +148,7 @@ async function rewriteArticles(items, district) {
 
       article.image = item.image || null;
       done.push(article);
+      markSeen(global.__seenUrls, item.url);
       console.log(`  ✓ ${article.body_ta.length}ta/${article.body_en.length}en chars — "${article.headline_en.substring(0,55)}"`);
       await sleep(AI_DELAY_MS);
     } catch(e) {
@@ -162,16 +169,27 @@ async function main() {
 
   const date = new Date();
   const allArticles = {};
+  global.__seenUrls = loadSeen();
+  const lastArticles = loadLastArticles();
+  console.log(`📋 Loaded ${Object.keys(global.__seenUrls).length} previously published URLs`);
+  console.log(`📋 Loaded cached articles for ${Object.keys(lastArticles).length} districts\n`);
 
   for (const district of Object.values(DISTRICT_SOURCES)) {
     try {
       const collected = await collectArticles(district);
-      if (!collected.length) { console.log(`  ⚠️  No articles found for ${district.name}`); continue; }
+      if (!collected.length) {
+        console.log(`  ⚠️  No new articles for ${district.name} — keeping existing page content`);
+        continue;
+      }
 
       const articles = await rewriteArticles(collected, district);
-      if (!articles.length) { console.log(`  ⚠️  No rewrites for ${district.name}`); continue; }
+      if (!articles.length) {
+        console.log(`  ⚠️  No rewrites for ${district.name} — keeping existing page content`);
+        continue;
+      }
 
       allArticles[district.slug] = articles;
+      lastArticles[district.slug] = articles; // update cache
       console.log(`\n💉 Injecting → ${district.slug}.html`);
       injectIntoRegionPage(district.slug, articles, date);
     } catch(e) {
@@ -179,8 +197,17 @@ async function main() {
     }
   }
 
+  // Merge fresh articles with cached ones for districts that had no new content
+  const homepageArticles = { ...lastArticles, ...allArticles };
+
   console.log('\n🏠 Updating homepage...');
-  updateHomepage(allArticles, date);
+  updateHomepage(homepageArticles, date);
+
+  // Persist updated cache (includes any newly-updated districts)
+  saveLastArticles(lastArticles);
+
+  saveSeen(global.__seenUrls);
+  console.log(`💾 Saved ${Object.keys(global.__seenUrls).length} published URLs for future deduplication`);
 
   console.log('\n🗺️  Sitemap...');
   generateSitemap(date);
