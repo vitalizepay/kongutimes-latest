@@ -2,11 +2,23 @@
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
-const { CATEGORY_TA, DISTRICT_SOURCES } = require('./rss-sources.cjs');
+const { CATEGORY_TA, DISTRICT_SOURCES, detectCategory } = require('./rss-sources.cjs');
 
 const catTA = (cat) => CATEGORY_TA[cat] || cat || 'பொது';
 const distTA = (slug) => DISTRICT_SOURCES[slug]?.tamil || slug;
 const distEN = (slug) => DISTRICT_SOURCES[slug]?.name || (slug.charAt(0).toUpperCase()+slug.slice(1));
+
+// Re-detect category from an article's actual content at render time.
+// This retroactively fixes stale/wrong categories on OLD history entries
+// too (generated before category-detection improvements), since rendering
+// re-runs detection every time instead of trusting the stored value.
+function getCategory(a) {
+  const detected = detectCategory(`${a.headline_en||''} ${a.headline_ta||''} ${a.body_en||''} ${a.body_ta||''}`);
+  if (detected !== 'General') return detected;
+  // Fall back to stored category only if it's a known, translatable value
+  if (a.category && CATEGORY_TA[a.category]) return a.category;
+  return 'General';
+}
 
 function dateEN(d) { return d.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'}); }
 function dateTA(d) {
@@ -38,20 +50,20 @@ function buildArticle(a, idx) {
   <meta itemprop="author" content="The Kongu Times"/>
   ${img}
   <div class="article-lang-ta">
-    <span class="article-label">${catTA(a.category)}</span>
+    <span class="article-label">${catTA(getCategory(a))}</span>
     <h2 class="article-title" itemprop="headline">${a.headline_ta||''}</h2>
     <div class="article-preview article-preview-ta">${preTA}...</div>
     <div class="article-full article-full-ta" style="display:none">${fullTA}</div>
   </div>
   <div class="article-lang-en" style="display:none">
-    <span class="article-label">${a.category||'General'}</span>
+    <span class="article-label">${getCategory(a)}</span>
     <h2 class="article-title">${a.headline_en||''}</h2>
     <div class="article-preview article-preview-en">${preEN}...</div>
     <div class="article-full article-full-en" style="display:none">${fullEN}</div>
   </div>
   <div class="article-meta">
     <span>📅 <span class="date-ta">${dTA}</span><span class="date-en" style="display:none">${dEN}</span></span>
-    <span class="meta-dot">·</span><span>🏷 <span class="cat-ta">${catTA(a.category)}</span><span class="cat-en" style="display:none">${a.category||'General'}</span></span>
+    <span class="meta-dot">·</span><span>🏷 <span class="cat-ta">${catTA(getCategory(a))}</span><span class="cat-en" style="display:none">${getCategory(a)}</span></span>
     <span class="meta-dot">·</span>
     <button class="read-more-btn" onclick="toggleArticle('${id}',this)" aria-expanded="false">மேலும் படிக்க ▼</button>
   </div>
@@ -139,7 +151,7 @@ function updateHomepage(history, date) {
     </div>
     <div class="hero-meta">
       <span>📅 <span class="hero-date-ta">${dateTA(tDate)}</span><span class="hero-date-en" style="display:none">${dateEN(tDate)}</span></span>
-      <span class="cat-ta">${catTA(top.category)}</span><span class="cat-en" style="display:none">${top.category||''}</span><span>✍️ The Kongu Times</span>
+      <span class="cat-ta">${catTA(getCategory(top))}</span><span class="cat-en" style="display:none">${getCategory(top)}</span><span>✍️ The Kongu Times</span>
     </div>`;
     r = replaceBlock(html,'<!--HERO-START-->','<!--HERO-END-->',hero);
     if (r) html = r;
@@ -151,7 +163,7 @@ function updateHomepage(history, date) {
     const aDate = art.publishedAt ? new Date(art.publishedAt) : date;
     return `
   <article class="hero-side" onclick="location.href='regions/${slug}.html'" style="cursor:pointer">
-    <div class="side-label"><span class="dist-ta">${distTA(slug)}</span><span class="dist-en" style="display:none">${distEN(slug)}</span> · <span class="cat-ta">${catTA(art.category)}</span><span class="cat-en" style="display:none">${art.category||''}</span></div>
+    <div class="side-label"><span class="dist-ta">${distTA(slug)}</span><span class="dist-en" style="display:none">${distEN(slug)}</span> · <span class="cat-ta">${catTA(getCategory(art))}</span><span class="cat-en" style="display:none">${getCategory(art)}</span></div>
     <div class="hero-lang-ta"><h2 class="side-title">${art.headline_ta||''}</h2><p class="side-body">${(art.body_ta||'').substring(0,120)}...</p></div>
     <div class="hero-lang-en" style="display:none"><h2 class="side-title">${art.headline_en||''}</h2><p class="side-body">${(art.body_en||'').substring(0,120)}...</p></div>
     <div class="side-meta">📅 <span class="hero-date-ta">${dateTA(aDate)}</span><span class="hero-date-en" style="display:none">${dateEN(aDate)}</span></div>
@@ -166,12 +178,12 @@ function updateHomepage(history, date) {
     return `
   <article class="news-card" onclick="location.href='regions/${slug}.html'">
     <div class="nc-lang-ta">
-      <div class="nc-region">${distTA(slug)} · ${catTA(art.category)}</div>
+      <div class="nc-region">${distTA(slug)} · ${catTA(getCategory(art))}</div>
       <h3 class="nc-title">${art.headline_ta||''}</h3>
       <p class="nc-body">${(art.meta_description_ta||'').substring(0,130)}</p>
     </div>
     <div class="nc-lang-en" style="display:none">
-      <div class="nc-region">${distEN(slug)} · ${art.category||''}</div>
+      <div class="nc-region">${distEN(slug)} · ${getCategory(art)}</div>
       <h3 class="nc-title">${art.headline_en||''}</h3>
       <p class="nc-body">${(art.meta_description_en||'').substring(0,130)}</p>
     </div>

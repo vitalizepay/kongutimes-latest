@@ -91,7 +91,7 @@ const DISTRICT_SOURCES = {
 
 const CATEGORIES = {
   'Agriculture': ['விவசாய','மஞ்சள்','நெல்','கரும்பு','முட்டை','மாம்பழம்','பட்டு','farmer','agriculture','crop','harvest','turmeric','paddy','egg','mango','sericulture','poultry'],
-  'Politics':    ['தேர்தல்','அரசியல்','மந்திரி','கட்சி','அதிமுக','திமுக','பாமக','தவெக','பாஜக','எம்.எல்.ஏ','எம்.பி','முதல்வர்','அமைச்சர்','election','politics','dmk','aiadmk','bjp','tvk','pmk','minister','mla','mp','party','vote','government'],
+  'Politics':    ['தேர்தல்','அரசியல்','மந்திரி','கட்சி','அதிமுக','திமுக','பாமக','தவெக','பாஜக','எம்.எல்.ஏ','எம்.பி','முதல்வர்','அமைச்சர்','election','politics','dmk','aiadmk','bjp','tvk','pmk','minister','mla','mp','party','vote'],
   'Infrastructure':['சாலை','பாலம்','ரயில்','விமான','road','bridge','railway','airport','highway','flyover','construction','metro'],
   'Industry':    ['தொழிற்சாலை','ஏற்றுமதி','ஜவுளி','industry','export','factory','textile','knitwear','manufacturing','msme'],
   'Education':   ['பள்ளி','கல்லூரி','மாணவர்','தேர்வு','school','college','students','education','exam','result','university','admission'],
@@ -116,12 +116,24 @@ const CATEGORY_TA = {
   'General': 'பொது',
 };
 
+// Score-based category detection: counts ALL keyword occurrences per
+// category and picks the highest score, instead of first-match-wins.
+// This prevents a single passing mention (e.g. "Namakkal, known for its
+// egg industry...") from overriding the article's actual dominant topic
+// (e.g. a crime story that repeatedly says காவல்/கைது/வழக்கு).
 function detectCategory(text) {
   const lower = (text || '').toLowerCase();
+  let best = 'General', bestScore = 0;
   for (const [cat, words] of Object.entries(CATEGORIES)) {
-    if (words.some(w => lower.includes(w.toLowerCase()))) return cat;
+    let score = 0;
+    for (const w of words) {
+      const wl = w.toLowerCase();
+      let idx = 0;
+      while ((idx = lower.indexOf(wl, idx)) !== -1) { score++; idx += wl.length; }
+    }
+    if (score > bestScore) { bestScore = score; best = cat; }
   }
-  return 'General';
+  return best;
 }
 
 module.exports = { DISTRICT_SOURCES, CATEGORIES, CATEGORY_TA, detectCategory };

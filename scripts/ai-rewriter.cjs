@@ -202,16 +202,12 @@ Return ONLY this JSON (no markdown, start with {, end with }):
   const meta_description_ta = meta.meta_description_ta || (bodyTA || '').substring(0, 150);
   const meta_description_en = meta.meta_description_en || (bodyEN || '').substring(0, 150);
 
-  // Re-detect category from the ACTUAL generated content (headline + body).
-  // Content-based detection takes PRIORITY over the AI's metadata guess —
-  // the AI's meta.category is often wrong/generic (e.g. tags an AIADMK
-  // harassment case as "Agriculture"), while keyword-matching the real
-  // article text is far more reliable.
+  // Category is determined ENTIRELY by scored keyword detection on the
+  // actual generated content — never by the AI's free-text meta.category,
+  // which can produce out-of-vocabulary values like "Entertainment" or
+  // "Crime and Society" that CATEGORY_TA can't translate to Tamil.
   const { detectCategory } = require('./rss-sources.cjs');
-  const detectedCategory = detectCategory(`${headline_en} ${headline_ta} ${bodyEN} ${bodyTA}`);
-  const finalCategory = detectedCategory !== 'General'
-    ? detectedCategory
-    : ((meta.category && meta.category !== 'General') ? meta.category : category);
+  const finalCategory = detectCategory(`${headline_en} ${headline_ta} ${bodyEN} ${bodyTA}`);
 
   // Combine everything
   return {
