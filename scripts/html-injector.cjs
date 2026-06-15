@@ -122,10 +122,12 @@ function updateHomepage(history, date) {
   const top = sorted[0]?.art;
   const topSlug = sorted[0]?.slug;
 
-  // Ticker — latest 2 articles from each district
-  const ti = Object.values(history).flat().filter(Boolean).flatMap(a=>[
-    a.headline_ta?`<span class="ticker-item">${a.headline_ta}</span>`:'',
-    a.headline_en?`<span class="ticker-item">${a.headline_en}</span>`:'',
+  // Ticker — only the LATEST article per district (7 items), not full history.
+  // Full history (up to 8 per district x 7 = 56) would create 224 ticker
+  // entries when duplicated for the scroll loop — far too much.
+  const ti = latestPerDistrict.flatMap(({art}) => [
+    art.headline_ta?`<span class="ticker-item">${art.headline_ta}</span>`:'',
+    art.headline_en?`<span class="ticker-item">${art.headline_en}</span>`:'',
   ]).filter(Boolean);
   const ticker = [...ti,...ti].join('');
   let r = replaceBlock(html,'<!--TICKER-START-->','<!--TICKER-END-->',ticker);
