@@ -183,15 +183,40 @@ Return ONLY this JSON (no markdown, start with {, end with }):
   let meta = extractJSON(metaRaw);
   if (!meta) meta = extractFieldsManually(metaRaw);
 
+  // Derive fallback headline/description from actual body text (never use
+  // a generic "{district} - {category} செய்தி" template — it mixes English
+  // category words into Tamil and doesn't reflect the real story)
+  const firstSentenceTA = (bodyTA || '').split(/[।.!?\n]/)[0].trim();
+  const firstSentenceEN = (bodyEN || '').split(/[.!?\n]/)[0].trim();
+
+  const fallbackHeadlineTA = firstSentenceTA
+    ? firstSentenceTA.split(/\s+/).slice(0, 12).join(' ')
+    : `${districtTamil} செய்தி`;
+  const fallbackHeadlineEN = firstSentenceEN
+    ? firstSentenceEN.split(/\s+/).slice(0, 12).join(' ')
+    : `${districtName} News Update`;
+
+  const headline_ta = (meta.headline_ta && meta.headline_ta.length >= 10) ? meta.headline_ta : fallbackHeadlineTA;
+  const headline_en = (meta.headline_en && meta.headline_en.length >= 10) ? meta.headline_en : fallbackHeadlineEN;
+
+  const meta_description_ta = meta.meta_description_ta || (bodyTA || '').substring(0, 150);
+  const meta_description_en = meta.meta_description_en || (bodyEN || '').substring(0, 150);
+
+  // Re-detect category from the ACTUAL generated content (headline + body),
+  // not just the original RSS item title — this fixes category/content mismatches
+  const { detectCategory } = require('./rss-sources.cjs');
+  const detectedCategory = detectCategory(`${headline_en} ${headline_ta} ${bodyEN} ${bodyTA}`);
+  const finalCategory = (meta.category && meta.category !== 'General') ? meta.category : (detectedCategory !== 'General' ? detectedCategory : category);
+
   // Combine everything
   return {
-    headline_ta: meta.headline_ta || `${districtTamil} - ${category} செய்தி`,
-    headline_en: meta.headline_en || `${districtName} - ${category} News`,
-    meta_description_ta: meta.meta_description_ta || '',
-    meta_description_en: meta.meta_description_en || '',
+    headline_ta,
+    headline_en,
+    meta_description_ta,
+    meta_description_en,
     body_ta: bodyTA.trim(),
     body_en: bodyEN.trim(),
-    category: meta.category || category,
+    category: finalCategory,
     tags: meta.tags || [],
   };
 }

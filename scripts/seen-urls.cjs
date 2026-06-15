@@ -9,7 +9,6 @@ function loadSeen() {
   try {
     const data = JSON.parse(fs.readFileSync(SEEN_FILE, 'utf8'));
     const cutoff = Date.now() - MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
-    // Prune old entries
     const pruned = {};
     for (const [url, ts] of Object.entries(data)) {
       if (ts >= cutoff) pruned[url] = ts;
@@ -26,34 +25,65 @@ function saveSeen(seenMap) {
   fs.writeFileSync(SEEN_FILE, JSON.stringify(seenMap, null, 2), 'utf8');
 }
 
-// Filter out items whose URL has already been published
 function filterUnseen(items, seenMap) {
   return items.filter(item => !seenMap[item.url]);
 }
 
-// Mark items as published (call after successful rewrite)
 function markSeen(seenMap, url) {
   seenMap[url] = Date.now();
 }
 
-module.exports = { loadSeen, saveSeen, filterUnseen, markSeen };
+// --- Article history (rolling window per district, for region pages + homepage) ---
+const HISTORY_FILE = path.join(__dirname, '..', 'data', 'article-history.json');
+const MAX_ARTICLES_PER_DISTRICT = 8;
 
-// --- Last published articles cache (for homepage continuity) ---
-const LAST_ARTICLES_FILE = path.join(__dirname, '..', 'data', 'last-articles.json');
-
-function loadLastArticles() {
+function loadHistory() {
   try {
-    return JSON.parse(fs.readFileSync(LAST_ARTICLES_FILE, 'utf8'));
+    return JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8'));
   } catch (e) {
     return {};
   }
 }
 
-function saveLastArticles(map) {
-  const dir = path.dirname(LAST_ARTICLES_FILE);
+function saveHistory(history) {
+  const dir = path.dirname(HISTORY_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(LAST_ARTICLES_FILE, JSON.stringify(map, null, 2), 'utf8');
+  fs.writeFileSync(HISTORY_FILE, JSON.stringify(history, null, 2), 'utf8');
 }
 
-module.exports.loadLastArticles = loadLastArticles;
-module.exports.saveLastArticles = saveLastArticles;
+// Prepend new articles to a district's history, trim to max length
+function addToHistory(history, slug, newArticles, publishedAt) {
+  const stamped = newArticles.map(a => ({ ...a, publishedAt }));
+  const existing = history[slug] || [];
+  history[slug] = [...stamped, ...existing].slice(0, MAX_ARTICLES_PER_DISTRICT);
+  return history[slug];
+}
+
+// One-time migration: convert old last-articles.json (single batch per district)
+// into the new article-history.json format (array per district)
+function migrateOldFormat() {
+  const oldFile = path.join(__dirname, '..', 'data', 'last-articles.json');
+  const newFile = HISTORY_FILE;
+  if (fs.existsSync(newFile)) return; // already migrated
+  try {
+    const old = JSON.parse(fs.readFileSync(oldFile, 'utf8'));
+    if (!old || Object.keys(old).length === 0) return;
+    const migrated = {};
+    const now = new Date().toISOString();
+    for (const [slug, arts] of Object.entries(old)) {
+      if (Array.isArray(arts)) {
+        migrated[slug] = arts.map(a => ({ ...a, publishedAt: a.publishedAt || now }));
+      }
+    }
+    saveHistory(migrated);
+    console.log(`📦 Migrated ${Object.keys(migrated).length} districts from last-articles.json to article-history.json`);
+  } catch (e) {
+    // No old file or invalid — nothing to migrate
+  }
+}
+
+module.exports = {
+  loadSeen, saveSeen, filterUnseen, markSeen,
+  loadHistory, saveHistory, addToHistory, MAX_ARTICLES_PER_DISTRICT,
+  migrateOldFormat,
+};

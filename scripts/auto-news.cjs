@@ -6,7 +6,7 @@ const { fetchFeed, fetchArticleText, deduplicate, filterByDistrict, filterRecent
 const { rewriteArticle } = require('./ai-rewriter.cjs');
 const { injectIntoRegionPage, updateHomepage } = require('./html-injector.cjs');
 const { generateSitemap, generateRobots } = require('./sitemap-gen.cjs');
-const { loadSeen, saveSeen, filterUnseen, markSeen, loadLastArticles, saveLastArticles } = require('./seen-urls.cjs');
+const { loadSeen, saveSeen, filterUnseen, markSeen, loadHistory, saveHistory, addToHistory, migrateOldFormat } = require('./seen-urls.cjs');
 
 const ARTICLES_PER_DISTRICT = 5;   // 5 full articles per district
 const MIN_TEXT_LENGTH = 80;
@@ -64,6 +64,17 @@ function isQualityOK(article) {
   // 6. Headlines must exist and be reasonable length
   if (!article.headline_ta || article.headline_ta.length < 10) return { ok: false, reason: 'invalid Tamil headline' };
   if (!article.headline_en || article.headline_en.length < 10) return { ok: false, reason: 'invalid English headline' };
+
+  // 7. Tamil headline must NOT contain stray English words (e.g. "...பெரும் Ssensation")
+  // Allow only short acronyms already common in Tamil news (CBI, BJP, DMK, AIADMK, etc.)
+  const ALLOWED_ACRONYMS = /^(CBI|BJP|DMK|AIADMK|TVK|PMK|MLA|MP|CM|IAS|IPS|NEET|AIIMS|TASMAC|ATM|FIR|RTO|TNEB|GST|NH|EDII)$/;
+  const headlineTAWords = article.headline_ta.match(/[A-Za-z]{2,}/g) || [];
+  const strayWordsTA = headlineTAWords.filter(w => !ALLOWED_ACRONYMS.test(w.toUpperCase()));
+  if (strayWordsTA.length > 0) return { ok: false, reason: `stray English word(s) in Tamil headline: ${strayWordsTA.join(', ')}` };
+
+  // 8. English headline must NOT contain Tamil characters
+  const tamilInHeadlineEN = (article.headline_en.match(/[\u0B80-\u0BFF]/g) || []).length;
+  if (tamilInHeadlineEN > 0) return { ok: false, reason: 'Tamil characters in English headline' };
 
   return { ok: true };
 }
@@ -170,11 +181,14 @@ async function main() {
   if (!process.env.OPENROUTER_API_KEY) { console.error('❌ OPENROUTER_API_KEY not set'); process.exit(1); }
 
   const date = new Date();
-  const allArticles = {};
+  const publishedAt = date.toISOString();
   global.__seenUrls = loadSeen();
-  const lastArticles = loadLastArticles();
+  migrateOldFormat();
+  const history = loadHistory();
   console.log(`📋 Loaded ${Object.keys(global.__seenUrls).length} previously published URLs`);
-  console.log(`📋 Loaded cached articles for ${Object.keys(lastArticles).length} districts\n`);
+  console.log(`📋 Loaded article history for ${Object.keys(history).length} districts\n`);
+
+  let totalNew = 0;
 
   for (const district of Object.values(DISTRICT_SOURCES)) {
     try {
@@ -190,24 +204,21 @@ async function main() {
         continue;
       }
 
-      allArticles[district.slug] = articles;
-      lastArticles[district.slug] = articles; // update cache
-      console.log(`\n💉 Injecting → ${district.slug}.html`);
-      injectIntoRegionPage(district.slug, articles, date);
+      totalNew += articles.length;
+      // Prepend new articles to history, trim to max length
+      const merged = addToHistory(history, district.slug, articles, publishedAt);
+      console.log(`\n💉 Injecting → ${district.slug}.html (${merged.length} total in history)`);
+      injectIntoRegionPage(district.slug, merged);
     } catch(e) {
       console.error(`\n❌ ${district.name}: ${e.message}`);
     }
   }
 
-  // Merge fresh articles with cached ones for districts that had no new content
-  const homepageArticles = { ...lastArticles, ...allArticles };
-
   console.log('\n🏠 Updating homepage...');
-  updateHomepage(homepageArticles, date);
+  updateHomepage(history, date);
 
-  // Persist updated cache (includes any newly-updated districts)
-  saveLastArticles(lastArticles);
-
+  // Persist updated history + seen URLs
+  saveHistory(history);
   saveSeen(global.__seenUrls);
   console.log(`💾 Saved ${Object.keys(global.__seenUrls).length} published URLs for future deduplication`);
 
@@ -215,13 +226,9 @@ async function main() {
   generateSitemap(date);
   generateRobots();
 
-  const total = Object.values(allArticles).reduce((s,a) => s+a.length, 0);
-  const avgLen = total > 0
-    ? Math.round(Object.values(allArticles).flat().reduce((s,a) => s + (a.body_en||'').trim().split(/\s+/).length, 0) / total)
-    : 0;
   console.log('\n' + '='.repeat(50));
-  console.log(`✅ Complete! Districts: ${Object.keys(allArticles).length}/7`);
-  console.log(`   Articles: ${total} | Avg length: ~${avgLen} words`);
+  console.log(`✅ Complete! New articles this run: ${totalNew}`);
+  console.log(`   Total in history: ${Object.values(history).flat().length} across ${Object.keys(history).length} districts`);
   console.log(`   Finished: ${new Date().toISOString()}`);
 }
 
