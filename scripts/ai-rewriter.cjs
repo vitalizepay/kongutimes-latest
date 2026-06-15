@@ -202,11 +202,16 @@ Return ONLY this JSON (no markdown, start with {, end with }):
   const meta_description_ta = meta.meta_description_ta || (bodyTA || '').substring(0, 150);
   const meta_description_en = meta.meta_description_en || (bodyEN || '').substring(0, 150);
 
-  // Re-detect category from the ACTUAL generated content (headline + body),
-  // not just the original RSS item title — this fixes category/content mismatches
+  // Re-detect category from the ACTUAL generated content (headline + body).
+  // Content-based detection takes PRIORITY over the AI's metadata guess —
+  // the AI's meta.category is often wrong/generic (e.g. tags an AIADMK
+  // harassment case as "Agriculture"), while keyword-matching the real
+  // article text is far more reliable.
   const { detectCategory } = require('./rss-sources.cjs');
   const detectedCategory = detectCategory(`${headline_en} ${headline_ta} ${bodyEN} ${bodyTA}`);
-  const finalCategory = (meta.category && meta.category !== 'General') ? meta.category : (detectedCategory !== 'General' ? detectedCategory : category);
+  const finalCategory = detectedCategory !== 'General'
+    ? detectedCategory
+    : ((meta.category && meta.category !== 'General') ? meta.category : category);
 
   // Combine everything
   return {

@@ -2,6 +2,11 @@
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
+const { CATEGORY_TA, DISTRICT_SOURCES } = require('./rss-sources.cjs');
+
+const catTA = (cat) => CATEGORY_TA[cat] || cat || 'பொது';
+const distTA = (slug) => DISTRICT_SOURCES[slug]?.tamil || slug;
+const distEN = (slug) => DISTRICT_SOURCES[slug]?.name || (slug.charAt(0).toUpperCase()+slug.slice(1));
 
 function dateEN(d) { return d.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'}); }
 function dateTA(d) {
@@ -33,7 +38,7 @@ function buildArticle(a, idx) {
   <meta itemprop="author" content="The Kongu Times"/>
   ${img}
   <div class="article-lang-ta">
-    <span class="article-label">${a.category||'General'}</span>
+    <span class="article-label">${catTA(a.category)}</span>
     <h2 class="article-title" itemprop="headline">${a.headline_ta||''}</h2>
     <div class="article-preview article-preview-ta">${preTA}...</div>
     <div class="article-full article-full-ta" style="display:none">${fullTA}</div>
@@ -46,7 +51,7 @@ function buildArticle(a, idx) {
   </div>
   <div class="article-meta">
     <span>📅 <span class="date-ta">${dTA}</span><span class="date-en" style="display:none">${dEN}</span></span>
-    <span class="meta-dot">·</span><span>🏷 ${a.category||'General'}</span>
+    <span class="meta-dot">·</span><span>🏷 <span class="cat-ta">${catTA(a.category)}</span><span class="cat-en" style="display:none">${a.category||'General'}</span></span>
     <span class="meta-dot">·</span>
     <button class="read-more-btn" onclick="toggleArticle('${id}',this)" aria-expanded="false">மேலும் படிக்க ▼</button>
   </div>
@@ -134,7 +139,7 @@ function updateHomepage(history, date) {
     </div>
     <div class="hero-meta">
       <span>📅 <span class="hero-date-ta">${dateTA(tDate)}</span><span class="hero-date-en" style="display:none">${dateEN(tDate)}</span></span>
-      <span>${top.category||''}</span><span>✍️ The Kongu Times</span>
+      <span class="cat-ta">${catTA(top.category)}</span><span class="cat-en" style="display:none">${top.category||''}</span><span>✍️ The Kongu Times</span>
     </div>`;
     r = replaceBlock(html,'<!--HERO-START-->','<!--HERO-END-->',hero);
     if (r) html = r;
@@ -146,10 +151,10 @@ function updateHomepage(history, date) {
     const aDate = art.publishedAt ? new Date(art.publishedAt) : date;
     return `
   <article class="hero-side" onclick="location.href='regions/${slug}.html'" style="cursor:pointer">
-    <div class="side-label">${slug.charAt(0).toUpperCase()+slug.slice(1)} · ${art.category||''}</div>
+    <div class="side-label"><span class="dist-ta">${distTA(slug)}</span><span class="dist-en" style="display:none">${distEN(slug)}</span> · <span class="cat-ta">${catTA(art.category)}</span><span class="cat-en" style="display:none">${art.category||''}</span></div>
     <div class="hero-lang-ta"><h2 class="side-title">${art.headline_ta||''}</h2><p class="side-body">${(art.body_ta||'').substring(0,120)}...</p></div>
     <div class="hero-lang-en" style="display:none"><h2 class="side-title">${art.headline_en||''}</h2><p class="side-body">${(art.body_en||'').substring(0,120)}...</p></div>
-    <div class="side-meta">📅 <span class="hero-date-ta">${dateTA(aDate)}</span><span class="hero-date-en" style="display:none">${dateEN(aDate)}</span> · 🏷 ${art.category||''}</div>
+    <div class="side-meta">📅 <span class="hero-date-ta">${dateTA(aDate)}</span><span class="hero-date-en" style="display:none">${dateEN(aDate)}</span></div>
   </article>`;
   }).join('\n');
   r = replaceBlock(html,'<!--SIDE-START-->','<!--SIDE-END-->',sideHTML);
@@ -158,19 +163,19 @@ function updateHomepage(history, date) {
   // News grid — one card per district (latest article), all 7 districts
   const cards = latestPerDistrict.map(({slug, art}) => {
     const aDate = art.publishedAt ? new Date(art.publishedAt) : date;
-    const dname = slug.charAt(0).toUpperCase()+slug.slice(1);
     return `
   <article class="news-card" onclick="location.href='regions/${slug}.html'">
-    <div class="nc-region">${dname} · ${art.category||''}</div>
     <div class="nc-lang-ta">
+      <div class="nc-region">${distTA(slug)} · ${catTA(art.category)}</div>
       <h3 class="nc-title">${art.headline_ta||''}</h3>
       <p class="nc-body">${(art.meta_description_ta||'').substring(0,130)}</p>
     </div>
     <div class="nc-lang-en" style="display:none">
+      <div class="nc-region">${distEN(slug)} · ${art.category||''}</div>
       <h3 class="nc-title">${art.headline_en||''}</h3>
       <p class="nc-body">${(art.meta_description_en||'').substring(0,130)}</p>
     </div>
-    <div class="nc-meta">📅 <span class="nc-date-ta">${dateTA(aDate)}</span><span class="nc-date-en" style="display:none">${dateEN(aDate)}</span> <span class="meta-dot">·</span> 🏷 ${art.category||''}</div>
+    <div class="nc-meta">📅 <span class="nc-date-ta">${dateTA(aDate)}</span><span class="nc-date-en" style="display:none">${dateEN(aDate)}</span></div>
   </article>`;
   });
 

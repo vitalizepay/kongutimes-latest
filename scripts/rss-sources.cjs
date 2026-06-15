@@ -91,15 +91,29 @@ const DISTRICT_SOURCES = {
 
 const CATEGORIES = {
   'Agriculture': ['விவசாய','மஞ்சள்','நெல்','கரும்பு','முட்டை','மாம்பழம்','பட்டு','farmer','agriculture','crop','harvest','turmeric','paddy','egg','mango','sericulture','poultry'],
-  'Politics':    ['தேர்தல்','அரசியல்','மந்திரி','கட்சி','election','politics','dmk','aiadmk','bjp','tvk','minister','mla','mp','party','vote'],
+  'Politics':    ['தேர்தல்','அரசியல்','மந்திரி','கட்சி','அதிமுக','திமுக','பாமக','தவெக','பாஜக','எம்.எல்.ஏ','எம்.பி','முதல்வர்','அமைச்சர்','election','politics','dmk','aiadmk','bjp','tvk','pmk','minister','mla','mp','party','vote','government'],
   'Infrastructure':['சாலை','பாலம்','ரயில்','விமான','road','bridge','railway','airport','highway','flyover','construction','metro'],
   'Industry':    ['தொழிற்சாலை','ஏற்றுமதி','ஜவுளி','industry','export','factory','textile','knitwear','manufacturing','msme'],
   'Education':   ['பள்ளி','கல்லூரி','மாணவர்','தேர்வு','school','college','students','education','exam','result','university','admission'],
   'Health':      ['மருத்துவமனை','நோய்','சுகாதாரம்','hospital','health','disease','treatment','doctor','medical','aiims'],
-  'Crime':       ['கைது','போலீஸ்','திருட்டு','கொலை','arrest','police','crime','theft','murder','robbery','court','cbi'],
+  'Crime':       ['கைது','போலீஸ்','காவல்','திருட்டு','கொலை','மிரட்டல்','வழக்கு','புகார்','குற்றவாளி','விசாரணை','arrest','police','crime','theft','murder','robbery','court','cbi','harassment'],
   'Development': ['திட்டம்','வளர்ச்சி','கோடி','development','project','scheme','crore','fund','inaugurate','launch'],
   'Environment': ['மழை','வெள்ளம்','அணை','யானை','rain','flood','drought','dam','river','lake','water','elephant'],
   'Sports':      ['கிரிக்கெட்','விளையாட்டு','cricket','sports','tournament','match','player','team'],
+};
+
+const CATEGORY_TA = {
+  'Agriculture': 'விவசாயம்',
+  'Politics': 'அரசியல்',
+  'Infrastructure': 'உள்கட்டமைப்பு',
+  'Industry': 'தொழில்',
+  'Education': 'கல்வி',
+  'Health': 'சுகாதாரம்',
+  'Crime': 'குற்றம்',
+  'Development': 'வளர்ச்சி',
+  'Environment': 'சுற்றுச்சூழல்',
+  'Sports': 'விளையாட்டு',
+  'General': 'பொது',
 };
 
 function detectCategory(text) {
@@ -110,4 +124,4 @@ function detectCategory(text) {
   return 'General';
 }
 
-module.exports = { DISTRICT_SOURCES, CATEGORIES, detectCategory };
+module.exports = { DISTRICT_SOURCES, CATEGORIES, CATEGORY_TA, detectCategory };

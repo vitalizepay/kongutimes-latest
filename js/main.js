@@ -11,6 +11,12 @@ function switchLang(lang) {
   // Dates
   document.querySelectorAll('.date-ta').forEach(function(el){ el.style.display=lang==='ta'?'inline':'none'; });
   document.querySelectorAll('.date-en').forEach(function(el){ el.style.display=lang==='en'?'inline':'none'; });
+  // Categories
+  document.querySelectorAll('.cat-ta').forEach(function(el){ el.style.display=lang==='ta'?'inline':'none'; });
+  document.querySelectorAll('.cat-en').forEach(function(el){ el.style.display=lang==='en'?'inline':'none'; });
+  // District names
+  document.querySelectorAll('.dist-ta').forEach(function(el){ el.style.display=lang==='ta'?'inline':'none'; });
+  document.querySelectorAll('.dist-en').forEach(function(el){ el.style.display=lang==='en'?'inline':'none'; });
   // Read more buttons — update text
   document.querySelectorAll('.read-more-btn[aria-expanded="false"]').forEach(function(b){
     b.innerHTML = lang==='ta' ? 'மேலும் படிக்க ▼' : 'Read more ▼';

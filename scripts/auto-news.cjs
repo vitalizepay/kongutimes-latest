@@ -55,6 +55,16 @@ function isQualityOK(article) {
   const brokenMatches = (bodyTA.match(brokenPattern) || []).length;
   if (brokenMatches > 8) return { ok: false, reason: `${brokenMatches} broken Tamil sequences detected` };
 
+  // 4b. Literal replacement character (�) = encoding corruption — hard fail, any occurrence
+  if (bodyTA.includes('\uFFFD') || bodyEN.includes('\uFFFD')) {
+    return { ok: false, reason: 'contains replacement characters (encoding corruption)' };
+  }
+
+  // 4c. Orphaned Tamil combining marks/vowel signs with no base consonant before them
+  // (e.g. " ி்ம" or "' ' ஆ" patterns) — strong signal of garbled/corrupted text
+  const orphanedMarks = (bodyTA.match(/(?:^|[^\u0B95-\u0BB9\u0BBE-\u0BCD])[\u0BBE-\u0BCD]/g) || []).length;
+  if (orphanedMarks > 5) return { ok: false, reason: `${orphanedMarks} orphaned Tamil combining marks (encoding corruption)` };
+
   // 5. English body should be mostly ASCII letters
   const asciiLetters = (bodyEN.match(/[a-zA-Z]/g) || []).length;
   const enTotalChars = bodyEN.replace(/\s/g, '').length;
