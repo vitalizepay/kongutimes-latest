@@ -21,6 +21,8 @@ const JUNK_PATTERNS = [
   /actress|actor|cinema|movie|film|serial|நடிகை|நடிகர்|சினிமா/i,  // Entertainment
   /cricket|ipl|match|player/i,               // Sports (unless category is sports)
   /gold price|petrol price|diesel price/i,
+  /candidates list|election 2026.*(candidates|mla|seat details)|assembly election.*candidates|election.*constituency.*list/i,  // Outdated evergreen election pages
+  /தேர்தல்.*வேட்பாளர்.*பட்டியல்|வேட்பாளர்கள் பட்டியல்/i,  // Tamil candidates list
 ];
 
 function isJunk(title, category) {
