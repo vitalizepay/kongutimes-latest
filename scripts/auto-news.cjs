@@ -75,12 +75,22 @@ function isQualityOK(article) {
   if (!article.headline_ta || article.headline_ta.length < 10) return { ok: false, reason: 'invalid Tamil headline' };
   if (!article.headline_en || article.headline_en.length < 10) return { ok: false, reason: 'invalid English headline' };
 
-  // 7. Tamil headline must NOT contain stray English words (e.g. "...பெரும் Ssensation")
-  // Allow only short acronyms already common in Tamil news (CBI, BJP, DMK, AIADMK, etc.)
+  // 7. Tamil headline AND body must NOT contain stray English words (e.g.
+  // "...பெரும் Ssensation" or mid-sentence leaks like "பெரும் சsensation ஐ").
+  // Allow only short acronyms already common in Tamil news (CBI, BJP, etc.)
   const ALLOWED_ACRONYMS = /^(CBI|BJP|DMK|AIADMK|TVK|PMK|MLA|MP|CM|IAS|IPS|NEET|AIIMS|TASMAC|ATM|FIR|RTO|TNEB|GST|NH|EDII)$/;
   const headlineTAWords = article.headline_ta.match(/[A-Za-z]{2,}/g) || [];
   const strayWordsTA = headlineTAWords.filter(w => !ALLOWED_ACRONYMS.test(w.toUpperCase()));
   if (strayWordsTA.length > 0) return { ok: false, reason: `stray English word(s) in Tamil headline: ${strayWordsTA.join(', ')}` };
+
+  // 7b. Same check for the Tamil BODY text. Acronyms are whitelisted above,
+  // and short noise (numbers/units glued to Tamil) is excluded by the
+  // 3+ letter regex. Any remaining stray English word — even just one,
+  // like "சsensation" — is a visible leak a reader would notice, so any
+  // occurrence fails the check (consistent with the headline check above).
+  const bodyTAWords = bodyTA.match(/[A-Za-z]{3,}/g) || [];
+  const strayWordsBodyTA = bodyTAWords.filter(w => !ALLOWED_ACRONYMS.test(w.toUpperCase()));
+  if (strayWordsBodyTA.length > 0) return { ok: false, reason: `stray English word(s) in Tamil body: ${strayWordsBodyTA.slice(0,5).join(', ')}` };
 
   // 8. English headline must NOT contain Tamil characters
   const tamilInHeadlineEN = (article.headline_en.match(/[\u0B80-\u0BFF]/g) || []).length;
