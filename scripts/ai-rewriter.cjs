@@ -144,11 +144,12 @@ Write a COMPLETE Tamil news article based on this source:
 
 REQUIREMENTS:
 - Write in natural modern Tamil journalism style
-- Minimum 5 paragraphs, each paragraph minimum 100 words
-- Total minimum 600 Tamil words
+- Exactly 5 paragraphs, each paragraph at least 3-4 sentences long
+- Total article must be at least 1000 Tamil characters (தமிழ் எழுத்துக்கள்) — write fully, do not stop early
 - Include: என்ன நடந்தது (what happened), ஏன் (why), யாரால் (who), எங்கே (where), என்ன தாக்கம் (impact on people), அதிகாரிகளின் கருத்து (official response)
 - Do NOT mention cinema, entertainment, or irrelevant topics
 - Write ONLY about ${districtName} district
+- Write the FULL article — do not truncate or summarise
 
 Return ONLY the Tamil article text. No JSON, no headlines, just the article paragraphs. Separate paragraphs with a blank line.`;
 
@@ -159,11 +160,12 @@ Write a COMPLETE English news article based on this source:
 
 REQUIREMENTS:
 - Professional English journalism style
-- Minimum 5 paragraphs, each paragraph minimum 100 words  
-- Total minimum 600 English words
+- Exactly 5 paragraphs, each paragraph at least 3-4 sentences long
+- Total article must be at least 1500 English characters — write fully, do not stop early
 - Include: what happened, why, who, where, impact on residents, official response
 - Do NOT mention cinema, entertainment, or irrelevant topics
 - Write ONLY about ${districtName} district
+- Write the FULL article — do not truncate or summarise
 
 Return ONLY the English article text. No JSON, no headlines, just the article paragraphs. Separate paragraphs with a blank line.`;
 
@@ -174,8 +176,8 @@ Return ONLY this JSON (no markdown, start with {, end with }):
 
   // Run all 3 in parallel for speed
   const [bodyTA, bodyEN, metaRaw] = await Promise.all([
-    callOpenRouter([{ role: 'user', content: tamilPrompt }], 2000),
-    callOpenRouter([{ role: 'user', content: englishPrompt }], 2000),
+    callOpenRouter([{ role: 'user', content: tamilPrompt }], 3000),
+    callOpenRouter([{ role: 'user', content: englishPrompt }], 3000),
     callOpenRouter([{ role: 'user', content: metaPrompt }], 400),
   ]);
 

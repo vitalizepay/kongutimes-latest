@@ -166,8 +166,8 @@ async function rewriteArticles(items, district) {
       const article = await rewriteArticle(item.sourceText, district.name, district.tamil, cat);
 
       if (!article.headline_ta || !article.body_ta || !article.body_en) throw new Error('Incomplete');
-      if (article.body_ta.length < 400) throw new Error(`Tamil too short: ${article.body_ta.length} chars`);
-      if (article.body_en.length < 400) throw new Error(`English too short: ${article.body_en.length} chars`);
+      if (article.body_ta.length < 300) throw new Error(`Tamil too short: ${article.body_ta.length} chars`);
+      if (article.body_en.length < 300) throw new Error(`English too short: ${article.body_en.length} chars`);
 
       const quality = isQualityOK(article);
       if (!quality.ok) {
